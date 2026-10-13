@@ -1,0 +1,152 @@
+import { CreateButton } from '@/components/refine-ui/buttons/create';
+import { DataTable } from '@/components/refine-ui/data-table/data-table';
+import { Breadcrumb } from '@/components/refine-ui/layout/breadcrumb';
+import { ListView } from '@/components/refine-ui/views/list-view';
+import { Input } from '@/components/ui/input';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Badge } from '@/components/ui/badge';
+import { Eye, Pencil, Search, Trash } from 'lucide-react';
+import { useTable } from '@refinedev/react-table';
+import { useList } from '@refinedev/core';
+import { useMemo, useState } from 'react';
+import { Department, SubjectWithDepartment } from '@/types';
+import type { ColumnDef } from '@tanstack/react-table';
+import { EditButton } from '@/components/refine-ui/buttons/edit';
+import { DeleteButton } from '@/components/refine-ui/buttons/delete';
+import { ShowButton } from '@/components/refine-ui/buttons/show';
+
+const SubjectsList = () => {
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedDepartment, setSelectedDepartment] = useState('all');
+  const { result: departmentsResult } = useList<Department>({
+    resource: 'departments',
+    pagination: { mode: 'off' },
+  });
+  const departmentOptions = useMemo(
+    () =>
+      (departmentsResult?.data ?? []).map((department) => ({
+        value: department.name,
+        label: department.name,
+      })),
+    [departmentsResult]
+  );
+  const departmentFilters = selectedDepartment === 'all' ? [] : [{ field: 'department', operator: 'eq' as const   , value: selectedDepartment }];
+  const searchFilters = searchQuery ? [{ field: 'search', operator: 'contains' as const, value: searchQuery }] : [];
+  const subjectTable = useTable<SubjectWithDepartment>({
+    columns:useMemo<ColumnDef<SubjectWithDepartment>[]>(() => [
+      {id:'code',
+        accessorKey: 'code',
+         size: 100,
+          header: ()=> <p className='column-title '>Code</p>,
+          cell: ({ getValue }) => <Badge variant="secondary"> {getValue<string>()}</Badge>
+        },
+      {
+        id: 'name',
+        accessorKey: 'name',
+        size: 200,
+        header: ()=> <p className='column-title '>Name</p>,
+        cell: ({ getValue }) => <span className='text-foreground'>{getValue<string>()}</span>,
+        filterFn: 'includesString',
+      },
+      {
+        id:'department',
+        accessorKey: 'department.name',
+        size: 150,
+        header: ()=> <p className='column-title '>Department</p>,
+        cell: ({ getValue }) => <Badge variant="secondary"> {getValue<string>()}</Badge>,
+      },
+      {
+        id: 'description',
+        accessorKey: 'description',
+        size: 300,
+        header: ()=> <p className='column-title '>Description</p>,
+        cell: ({ getValue }) => <span className='truncate line-clamp-2'>{getValue<string>()}</span>,
+        filterFn: 'includesString',
+      },
+      {
+        id: 'actions',
+        size: 150,
+        header: () => <p className='column-title '>Actions</p>,
+        cell: ({ row }) => (
+          <div className='flex gap-2'>
+            <ShowButton size='icon' variant='ghost' recordItemId={row.original.id}>
+              <Eye className='h-4 w-4' />
+            </ShowButton>
+            <EditButton size='icon' variant='ghost' recordItemId={row.original.id}>
+              <Pencil className='h-4 w-4' />
+            </EditButton>
+            <DeleteButton size='icon' recordItemId={row.original.id}>
+              <Trash className='h-4 w-4' />
+            </DeleteButton>
+          </div>
+        ),
+      },
+    ], []),
+    refineCoreProps: {
+      resource: 'subjects',
+      pagination: { pageSize: 10, mode: 'server' },
+      filters: {
+        permanent: [
+      
+          ...departmentFilters,...searchFilters
+        ],  
+      },
+      sorters: {
+        initial:[
+          {field:'name',order:'desc'}
+        ]
+      },
+    },
+  });
+  return (
+          <ListView>
+      <Breadcrumb/>
+        <h1 className='page-title'>Subjects</h1>
+        <div className='intro-row'>
+          <p>Quick access to essential metrics and management tools.</p>
+        </div>
+        <div className='actions-row'>
+          <div className='search-field'>
+            <Search className='search-icon' />
+            <Input
+            type='text'
+            placeholder='Search by Name'
+            className='pl-10 w-full'
+            value = {searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            />
+          </div>
+          <div className='flex gap-2 w-full sm:w-auto'>
+            <Select value={selectedDepartment} onValueChange={setSelectedDepartment}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder='Filter by Department' />
+              </SelectTrigger>
+
+              <SelectContent >
+                <SelectItem value='all'>
+                  All Departments
+                </SelectItem>
+                {departmentOptions.map((dept) => (
+                  <SelectItem key={dept.value} value={dept.value}>
+                    {dept.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+
+            </Select>
+            <CreateButton/>
+          </div>
+        </div>
+      <DataTable table ={subjectTable} />
+      </ListView>
+
+  );
+}
+export default SubjectsList;
